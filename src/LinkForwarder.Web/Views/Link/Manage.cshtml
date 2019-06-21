@@ -1,0 +1,252 @@
+@{
+    var showLinkUrlPrefix = $"{Context.Request.Scheme}://{Context.Request.Host}/fw/";
+}
+
+@section scripts{
+    <script src="~/lib/jquery-qrcode/jquery.qrcode.min.js"></script>
+    <script src="~/lib/datatables/js/jquery.dataTables.min.js"></script>
+    <script src="~/lib/datatables/js/dataTables.bootstrap4.min.js"></script>
+    <script src="~/js/jquery-utc-time.min.js"></script>
+    <script>
+        $(function () {
+            var table = $(".table-links").DataTable({
+                "order": [[4, "desc"]],
+                "processing": true,
+                "serverSide": true,
+                "ordering": false,
+                "ajax":
+                {
+                    url: "/link/list",
+                    type: "POST"
+                },
+                "initComplete": function(settings, json) {
+                    $('.dataTables_filter input').unbind();
+                    $('.dataTables_filter input').bind('keyup blur', function (e) {
+                        console.info(e);
+                        if(e.keyCode == 13 || e.type == 'blur') {
+                            table.search( this.value ).draw();
+                        }
+                    }); 
+                },
+                "columns": [
+                    { "data": "fwToken" },
+                    { "data": "originUrl" },
+                    { "data": "note" },
+                    { "data": "isEnabled" },
+                    { "data": "updateTimeUtc" },
+                    { "data": null }
+                ],
+                "columnDefs": [{
+                    "targets": -1,
+                    "render": function (data, type, row, meta) {
+                        return '<a href="javascript:;" onclick="showLink(\'' + data.fwToken + '\')" class="btn btn-sm btn-outline-success">Share</a> <a href="javascript:;" onclick="editLink(\'' + data.id + '\')" class="btn btn-sm btn-outline-primary">Edit</a> <button class="btn btn-sm btn-outline-danger btn-delete">Delete</button>';
+                    }
+                }, {
+                    "targets": 0,
+                    "data": "fwToken",
+                    "render": function (data, type, row, meta) {
+                        return '<a href="/fw/' + data + '" target="_blank">' + data + '</a>';
+                    }
+                }, {
+                    "targets": 1,
+                    "data": "originUrl",
+                    "render": function (data, type, row, meta) {
+                        return '<span class="wordwrap"><a href="' + data + '" target="_blank">' + data + '</a></span>';
+                    }
+                },
+                {
+                    "targets": 3,
+                    "data": "isEnabled",
+                    "render": function (data, type, row, meta) {
+                        return data ? '✔' : '❌';
+                    }
+                },
+                {
+                    "targets": 4,
+                    "data": "updateTimeUtc",
+                    "render": function (data, type, row, meta) {
+                        return '<span data-utc-time="' + data + '"></span>';
+                    }
+                }]
+            });
+
+            $(this).initUTCTime({
+                daysAgo: ' days ago',
+                hoursAgo: ' hours ago',
+                minutesAgo: ' minutes ago',
+                secondsAgo: ' seconds ago'
+            });
+
+            $('.table-links tbody').on('click', 'button', function () {
+                var data = table.row($(this).parents('tr')).data();
+                console.info(data);
+                var cfm = confirm("Delete Confirmation?");
+                if (cfm) {
+                    deleteLink(data.id);
+                    $(this).parents('tr').hide();
+                }
+            });
+        });
+
+        function showLink(token) {
+            var url = '@showLinkUrlPrefix' + token;
+            $(".qrcode").empty();
+            $(".qrcode").qrcode(url);
+            $("#input-link-url").val(url);
+            $('#showlinkModal').modal();
+        }
+
+        function editLink(linkId) {
+            $.get('/link/get-edit-model/' + linkId, function(data) {
+                $("#input-id").val(data.id);
+                $("#input-origin-url").val(data.originUrl);
+                $("#input-note").val(data.note);
+                $("#check-is-enabled").attr('checked', data.isEnabled);
+                $("#editLinkModal").modal();
+            });
+        }
+
+        $(".btn-copy").click(function () {
+            copyToClipboard(document.getElementById("input-link-url"));
+        });
+
+        $(".btn-create-link").click(function () {
+            $("#edit-form")[0].reset();
+            $("#editLinkModal").modal();
+        });
+
+        $(".btn-submit").click(function() {
+            if ($("#edit-form").valid()) {
+                var action = '';
+                var linkId = $("#input-id").val();
+                if (linkId == 0) {
+                    action = "create";
+                }
+                else {
+                    action = "edit";
+                }
+
+                ajaxPostWithCSRFToken('/link/' + action,
+                    {
+                        "Id": $("#input-id").val(),
+                        "OriginUrl": $("#input-origin-url").val(),
+                        "Note": $("#input-note").val(),
+                        "IsEnabled": $("#check-is-enabled").is(":checked")
+                    },
+                    function (data) {
+                        $("#edit-form")[0].reset();
+                        $("#editLinkModal").modal('hide');
+                        toastr.success("Operation succeed, link token: " + data.item);
+                        showLink(data.item);
+                    });
+            }
+        });
+    </script>
+}
+@section head{
+    <link href="~/lib/datatables/css/dataTables.bootstrap4.min.css" rel="stylesheet" />
+}
+
+<button class="btn btn-success btn-create-link">
+    Create Link
+</button>
+<hr />
+
+<style>
+    table {
+        table-layout: fixed;
+        font-size: 0.95rem;
+    }
+
+    .wordwrap {
+        word-wrap: break-word;
+    }
+</style>
+
+@Html.AntiForgeryToken()
+<table class="table table-bordered table-sm table-links">
+    <thead>
+        <tr>
+            <th style="width: 80px;">Token</th>
+            <th>Origin Url</th>
+            <th>Note</th>
+            <th style="width: 80px;">Enabled</th>
+            <th style="width: 100px;">Update Time</th>
+            <th style="width: 180px;">Action</th>
+        </tr>
+    </thead>
+</table>
+
+<div class="modal fade" id="editLinkModal" tabindex="-1" role="dialog" aria-labelledby="editLinkModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editLinkModalLabel">Link Information</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <form id="edit-form" novalidate="novalidate">
+                <div class="modal-body">
+                    <input type="hidden" id="input-id" name="input-id" value="0">
+                    <div class="form-group">
+                        <label class="control-label" for="input-origin-url">Origin Url</label>
+                        <input class="form-control"
+                               type="url"
+                               data-val="true"
+                               data-val-maxlength="The field Origin Url must be a string or array type with a maximum length of '256'."
+                               data-val-maxlength-max="256"
+                               data-val-minlength="The field Origin Url must be a string or array type with a minimum length of '1'."
+                               data-val-minlength-min="1"
+                               data-val-required="The Origin Url field is required."
+                               id="input-origin-url"
+                               maxlength="256"
+                               name="input-origin-url"
+                               value="">
+                        <span class="text-danger field-validation-valid" data-valmsg-for="input-origin-url" data-valmsg-replace="true"></span>
+                    </div>
+                    <div class="form-group">
+                        <label class="control-label" for="input-note">Note</label>
+                        <input class="form-control" type="text" id="input-note" name="input-note" value="">
+                    </div>
+
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" checked="checked" id="check-is-enabled" name="check-is-enabled" value="true">
+                        <label class="form-check-label" for="check-is-enabled">Enable</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-success btn-submit">Submit</button>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="showlinkModal" tabindex="-1" role="dialog" aria-labelledby="showlinkModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="showlinkModalLabel">Share Your Link</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-row">
+                    <div class="col-md-10 col-12">
+                        <input id="input-link-url" type="text" value="" readonly="readonly" class="form-control" />
+                    </div>
+                    <div class="col">
+                        <button class="btn btn-block btn-outline-success btn-copy">Copy</button>
+                    </div>
+                </div>
+                <section class="qrcode mt-3 text-center align-content-center"></section>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
