@@ -1,4 +1,4 @@
-# Link Forwarder (Preview)
+# Link Forwarder
 
 [![Build status](https://dev.azure.com/ediwang/EdiWang-GitHub-Builds/_apis/build/status/LinkForwarder-CI)](https://dev.azure.com/ediwang/EdiWang-GitHub-Builds/_build/latest?definitionId=57)
 
@@ -17,17 +17,23 @@ Main purposes:
 
 Forward Link, Create/Manage/Share Link, View Report
 
-![image](https://raw.githubusercontent.com/EdiWang/LinkForwarder/master/docs/images/sc-report.png)
+![image](https://cdn-blob.edi.wang/web-assets/lf/sc-report.png)
 
-![image](https://raw.githubusercontent.com/EdiWang/LinkForwarder/master/docs/images/sc-manage-link.png)
+![image](https://cdn-blob.edi.wang/web-assets/lf/sc-manage-link.png)
 
-![image](https://raw.githubusercontent.com/EdiWang/LinkForwarder/master/docs/images/sc-edit-link.png)
+![image](https://cdn-blob.edi.wang/web-assets/lf/sc-edit-link.png)
 
-![image](https://raw.githubusercontent.com/EdiWang/LinkForwarder/master/docs/images/sc-share-link.png)
+![image](https://cdn-blob.edi.wang/web-assets/lf/sc-share-link.png)
 
 ## Forward Logic
 
-![image](https://raw.githubusercontent.com/EdiWang/LinkForwarder/master/docs/images/LinkForwarder-FW.png)
+![image](https://cdn-blob.edi.wang/web-assets/lf/LinkForwarder-FW.png)
+
+## Docker Deployment
+
+See https://hub.docker.com/r/ediwang/linkforwarder
+
+If you don't like docker, you can follow the next section to build and run the project yourself.
 
 ## Build and Run
 
@@ -35,9 +41,9 @@ Forward Link, Create/Manage/Share Link, View Report
 
 Tools | Alternative
 --- | ---
-[.NET Core 2.2 SDK](http://dot.net) | N/A
+[.NET Core 3.1 SDK](http://dot.net) | N/A
 [Visual Studio 2019](https://visualstudio.microsoft.com/) | [Visual Studio Code](https://code.visualstudio.com/)
-[Azure SQL Database](https://azure.microsoft.com/en-us/services/sql-database/) | [SQL Server 2017](https://www.microsoft.com/en-us/sql-server/sql-server-2017) / LocalDB (Dev Only)
+[Azure SQL Database](https://azure.microsoft.com/en-us/services/sql-database/) | [SQL Server 2019](https://www.microsoft.com/en-us/sql-server/sql-server-2019) / LocalDB (Dev Only)
 
 
 ### Setup Database
@@ -46,11 +52,11 @@ Tools | Alternative
 
 ##### For Development (Light Weight, Recommended for Windows)
 
-Create an [SQL Server 2017 LocalDB](https://docs.microsoft.com/en-us/sql/database-engine/configure-windows/sql-server-express-localdb?view=sql-server-2017) database. e.g. linkforwarder-dev
+Create an [SQL Server 2019 LocalDB](https://docs.microsoft.com/en-us/sql/database-engine/configure-windows/sql-server-express-localdb) database. e.g. linkforwarder-dev
 
 ##### For Production
 
-[Create an Azure SQL Database](https://docs.microsoft.com/en-us/azure/sql-database/sql-database-single-database-get-started) or a SQL Server 2017+ database. e.g. linkforwarder-dev
+[Create an Azure SQL Database](https://docs.microsoft.com/en-us/azure/sql-database/sql-database-single-database-get-started) or a SQL Server 2019+ database. e.g. linkforwarder-dev
 
 #### 2. Set Connection String
 

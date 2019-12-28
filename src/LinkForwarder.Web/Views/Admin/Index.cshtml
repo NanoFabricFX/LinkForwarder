@@ -4,9 +4,6 @@
 
 @section scripts{
     <script src="~/lib/jquery-qrcode/jquery.qrcode.min.js"></script>
-    <script src="~/lib/datatables/js/jquery.dataTables.min.js"></script>
-    <script src="~/lib/datatables/js/dataTables.bootstrap4.min.js"></script>
-    <script src="~/js/jquery-utc-time.min.js"></script>
     <script>
         $(function () {
             var table = $(".table-links").DataTable({
@@ -16,7 +13,7 @@
                 "ordering": false,
                 "ajax":
                 {
-                    url: "/link/list",
+                    url: "/admin/list",
                     type: "POST"
                 },
                 "initComplete": function(settings, json) {
@@ -32,6 +29,7 @@
                     { "data": "fwToken" },
                     { "data": "originUrl" },
                     { "data": "note" },
+                    { "data": "akaName" },
                     { "data": "isEnabled" },
                     { "data": "updateTimeUtc" },
                     { "data": null }
@@ -55,14 +53,14 @@
                     }
                 },
                 {
-                    "targets": 3,
+                    "targets": 4,
                     "data": "isEnabled",
                     "render": function (data, type, row, meta) {
                         return data ? '✔' : '❌';
                     }
                 },
                 {
-                    "targets": 4,
+                    "targets": 5,
                     "data": "updateTimeUtc",
                     "render": function (data, type, row, meta) {
                         return '<span data-utc-time="' + data + '"></span>';
@@ -75,6 +73,11 @@
                 hoursAgo: ' hours ago',
                 minutesAgo: ' minutes ago',
                 secondsAgo: ' seconds ago'
+            });
+
+            $(".btn-refresh").click(function () {
+                table.ajax.reload();
+                toastr.success("Data Refreshed");
             });
 
             $('.table-links tbody').on('click', 'button', function () {
@@ -97,10 +100,11 @@
         }
 
         function editLink(linkId) {
-            $.get('/link/get-edit-model/' + linkId, function(data) {
+            $.get('/admin/get-edit-model/' + linkId, function(data) {
                 $("#input-id").val(data.id);
                 $("#input-origin-url").val(data.originUrl);
                 $("#input-note").val(data.note);
+                $("#input-akaName").val(data.akaName);
                 $("#check-is-enabled").attr('checked', data.isEnabled);
                 $("#editLinkModal").modal();
             });
@@ -126,11 +130,12 @@
                     action = "edit";
                 }
 
-                ajaxPostWithCSRFToken('/link/' + action,
+                ajaxPostWithCSRFToken('/admin/' + action,
                     {
                         "Id": $("#input-id").val(),
                         "OriginUrl": $("#input-origin-url").val(),
                         "Note": $("#input-note").val(),
+                        "AkaName": $("#input-akaName").val(),
                         "IsEnabled": $("#check-is-enabled").is(":checked")
                     },
                     function (data) {
@@ -142,9 +147,6 @@
             }
         });
     </script>
-}
-@section head{
-    <link href="~/lib/datatables/css/dataTables.bootstrap4.min.css" rel="stylesheet" />
 }
 
 <button class="btn btn-success btn-create-link">
@@ -164,12 +166,16 @@
 </style>
 
 @Html.AntiForgeryToken()
+
+<button class="btn btn-sm btn-success btn-refresh float-right">Refresh</button>
+
 <table class="table table-bordered table-sm table-links">
     <thead>
         <tr>
             <th style="width: 80px;">Token</th>
             <th>Origin Url</th>
             <th>Note</th>
+            <th style="width: 80px;">Aka</th>
             <th style="width: 80px;">Enabled</th>
             <th style="width: 100px;">Update Time</th>
             <th style="width: 180px;">Action</th>
@@ -208,6 +214,14 @@
                     <div class="form-group">
                         <label class="control-label" for="input-note">Note</label>
                         <input class="form-control" type="text" id="input-note" name="input-note" value="">
+                    </div>
+                    <div class="form-group">
+                        <label class="control-label" for="input-akaName">Aka</label>
+                        <input class="form-control" type="text" id="input-akaName" name="input-akaName" value=""
+                               data-val="true" 
+                               data-val-regex="Aka can only accept lower case English letters (a-z) and numbers (0-9) with/out hyphen (-) in middle." data-val-regex-pattern="(?!-)([a-z0-9-]+)"
+                               data-val-maxlength-max="32">
+                        <span class="text-danger field-validation-valid" data-valmsg-for="input-akaName" data-valmsg-replace="true"></span>
                     </div>
 
                     <div class="form-check">

@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace LinkForwarder.Services
+namespace LinkForwarder.Services.Entities
 {
     public class Link
     {
@@ -11,6 +11,8 @@ namespace LinkForwarder.Services
         public string FwToken { get; set; }
 
         public string Note { get; set; }
+
+        public string AkaName { get; set; }
 
         public bool IsEnabled { get; set; }
 

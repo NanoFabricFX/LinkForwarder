@@ -1,55 +1,44 @@
 ﻿using System;
 using System.Data;
 using System.Data.SqlClient;
-using System.IO;
 using System.Text;
 using AspNetCoreRateLimit;
 using LinkForwarder.Services;
+using LinkForwarder.Services.TokenGenerator;
 using LinkForwarder.Setup;
 using LinkForwarder.Web.Authentication;
+using LinkForwarder.Web.Extensions;
 using LinkForwarder.Web.Models;
+using Microsoft.ApplicationInsights.Extensibility;
+using Microsoft.ApplicationInsights.Extensibility.Implementation;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Rewrite;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace LinkForwarder.Web
 {
     public class Startup
     {
-        private readonly ILogger<Startup> _logger;
+        private ILogger<Startup> _logger;
 
-        public IHostingEnvironment Environment { get; }
+        public IWebHostEnvironment Environment { get; }
 
-        public Startup(IConfiguration configuration, ILogger<Startup> logger, IHostingEnvironment env)
+        public Startup(IConfiguration configuration, IWebHostEnvironment env)
         {
             Configuration = configuration;
             Environment = env;
-            _logger = logger;
         }
 
         public IConfiguration Configuration { get; }
 
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddOptions();
-
-            services.AddMemoryCache();
-
-            // Setup document: https://github.com/stefanprodan/AspNetCoreRateLimit/wiki/IpRateLimitMiddleware#setup
-            //load general configuration from appsettings.json
-            services.Configure<IpRateLimitOptions>(Configuration.GetSection("IpRateLimiting"));
-
-            //load ip rules from appsettings.json
-            // services.Configure<IpRateLimitPolicies>(Configuration.GetSection("IpRateLimitPolicies"));
-
-            // inject counter and rules stores
-            services.AddSingleton<IIpPolicyStore, MemoryCacheIpPolicyStore>();
-            services.AddSingleton<IRateLimitCounterStore, MemoryCacheRateLimitCounterStore>();
+            services.AddRateLimit(Configuration.GetSection("IpRateLimiting"));
 
             services.AddSession(options =>
             {
@@ -75,19 +64,32 @@ namespace LinkForwarder.Web
             services.AddSingleton<ITokenGenerator, ShortGuidTokenGenerator>();
             services.AddTransient<ILinkForwarderService, LinkForwarderService>();
             services.AddTransient<ILinkVerifier, LinkVerifier>();
-            services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_2);
 
-            // https://github.com/aspnet/Hosting/issues/793
-            // the IHttpContextAccessor service is not registered by default.
-            // the clientId/clientIp resolvers use it.
-            services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
+            services.AddApplicationInsightsTelemetry();
 
-            // configuration (resolvers, counter key builders)
-            services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
+            services.AddControllersWithViews();
+            services.AddRazorPages();
         }
 
-        public void Configure(IApplicationBuilder app, IHostingEnvironment env)
+        public void Configure(IApplicationBuilder app, IWebHostEnvironment env, ILogger<Startup> logger, TelemetryConfiguration configuration)
         {
+            _logger = logger;
+            _logger.LogInformation($"LinkForwarder Version {Utils.AppVersion}\n" +
+                   "--------------------------------------------------------\n" +
+                   $" Directory: {System.Environment.CurrentDirectory} \n" +
+                   $" x64Process: {System.Environment.Is64BitProcess} \n" +
+                   $" OSVersion: {System.Runtime.InteropServices.RuntimeInformation.OSDescription} \n" +
+                   $" UserName: {System.Environment.UserName} \n" +
+                   "--------------------------------------------------------");
+
+            if (!env.IsProduction())
+            {
+                _logger.LogWarning("Application is running under DEBUG mode. Application Insights disabled.");
+
+                configuration.DisableTelemetry = true;
+                TelemetryDebugWriter.IsTracingDisabled = true;
+            }
+
             if (env.IsDevelopment())
             {
                 _logger.LogWarning("LinkForwarder is running in DEBUG.");
@@ -100,11 +102,9 @@ namespace LinkForwarder.Web
                 app.UseHttpsRedirection();
             }
 
-            var baseDir = env.ContentRootPath;
-            TryAddUrlRewrite(app, baseDir);
+            TryAddUrlRewrite(app);
 
             app.UseStaticFiles();
-            app.UseAuthentication();
 
             var conn = Configuration.GetConnectionString(Constants.DbName);
             var setupHelper = new SetupHelper(conn);
@@ -145,7 +145,7 @@ namespace LinkForwarder.Web
                 {
                     builder.Run(async context =>
                     {
-                        await context.Response.WriteAsync("LinkForwarder Version: " + Utils.AppVersion, Encoding.UTF8);
+                        await context.Response.WriteAsync($"LinkForwarder Version: {Utils.AppVersion}, .NET Core {System.Environment.Version}", Encoding.UTF8);
                     });
                 });
 
@@ -158,29 +158,29 @@ namespace LinkForwarder.Web
                     });
                 });
 
-                app.UseMvc();
+                app.UseRouting();
+
+                app.UseAuthentication();
+                app.UseAuthorization();
+
+                app.UseEndpoints(endpoints =>
+                {
+                    endpoints.MapControllerRoute(
+                        name: "default",
+                        pattern: "{controller=Home}/{action=Index}/{id?}");
+                    endpoints.MapRazorPages();
+                });
             }
         }
 
-        private void TryAddUrlRewrite(IApplicationBuilder app, string baseDir)
+        private void TryAddUrlRewrite(IApplicationBuilder app)
         {
             try
             {
-                var urlRewriteConfigPath = Path.Combine(baseDir, "urlrewrite.xml");
-                if (File.Exists(urlRewriteConfigPath))
-                {
-                    using (var sr = File.OpenText(urlRewriteConfigPath))
-                    {
-                        var options = new RewriteOptions()
-                            .AddRedirect("(.*)/$", "$1")
-                            .AddIISUrlRewrite(sr);
-                        app.UseRewriter(options);
-                    }
-                }
-                else
-                {
-                    _logger.LogWarning($"Can not find {urlRewriteConfigPath}, skip adding url rewrite.");
-                }
+                var options = new RewriteOptions()
+                    .AddRedirect("(.*)/$", "$1")
+                    .AddRedirect("(index|default).(aspx?|htm|s?html|php|pl|jsp|cfm)", "/");
+                app.UseRewriter(options);
             }
             catch (Exception e)
             {
