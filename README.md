@@ -1,33 +1,34 @@
-# Link Forwarder
+# Elf
 
 [![Build status](https://dev.azure.com/ediwang/EdiWang-GitHub-Builds/_apis/build/status/LinkForwarder-CI)](https://dev.azure.com/ediwang/EdiWang-GitHub-Builds/_build/latest?definitionId=57)
 
-The link forward service used by https://go.edi.wang. 
-
-Generate static URLs for redirecting third party URLs. It's similar to, but NOT a URL shorter. 
-
-> E.g.: Make "https://www.somewebsite.com/a-very-long-and-complicated-link-that-can-also-change?with=parameters" into "https://yourdomain/fw/token".
-
-Main purposes:
+The link forward service used by https://go.edi.wang. It generates static URLs for redirecting third party URLs. It's similar to, but **NOT a URL shorter**. 
 
 - Use a static token to adapt changes to origin url.
-- Track user click by User-Agent and IP Address.
+- Track user click to generate report. (Only if DNT isn't enabled)
+
+e.g.:
+
+Raw URL:
+```
+https://www.somewebsite.com/a-very-long-and-complicated-link-that-can-also-change?with=parameters
+```
+
+will translate to
+
+```
+https://yourdomain/fw/token
+```
 
 ## Features
 
 Forward Link, Create/Manage/Share Link, View Report
 
-![image](https://cdn-blob.edi.wang/web-assets/lf/sc-report.png)
-
-![image](https://cdn-blob.edi.wang/web-assets/lf/sc-manage-link.png)
-
-![image](https://cdn-blob.edi.wang/web-assets/lf/sc-edit-link.png)
-
-![image](https://cdn-blob.edi.wang/web-assets/lf/sc-share-link.png)
+![image](https://blog.ediwangcdn.com/web-assets/lf/sc-report.png)
 
 ## Forward Logic
 
-![image](https://cdn-blob.edi.wang/web-assets/lf/LinkForwarder-FW.png)
+![image](https://blog.ediwangcdn.com/web-assets/lf/LinkForwarder-FW.png)
 
 ## Docker Deployment
 
@@ -37,14 +38,13 @@ If you don't like docker, you can follow the next section to build and run the p
 
 ## Build and Run
 
-> The following tools are required for development.
-
 Tools | Alternative
 --- | ---
 [.NET Core 3.1 SDK](http://dot.net) | N/A
 [Visual Studio 2019](https://visualstudio.microsoft.com/) | [Visual Studio Code](https://code.visualstudio.com/)
 [Azure SQL Database](https://azure.microsoft.com/en-us/services/sql-database/) | [SQL Server 2019](https://www.microsoft.com/en-us/sql-server/sql-server-2019) / LocalDB (Dev Only)
 
+For a quick Azure deployment, you can use the automation script ```Azure-Deployment\Deploy.ps1``` to setup a ready-to-run Elf in a couple of minutes. (Azure CLI is required to run the script)
 
 ### Setup Database
 
@@ -65,7 +65,7 @@ Update the connection string "**LinkForwarderDatabase**" in **appsettings.[env].
 Example:
 ```json
 "ConnectionStrings": {
-  "LinkForwarderDatabase": "Server=(localdb)\\MSSQLLocalDB;Database=linkforwarder-dev;Trusted_Connection=True;"
+  "ElfDatabase": "Server=(localdb)\\MSSQLLocalDB;Database=linkforwarder-dev;Trusted_Connection=True;"
 }
 ```
 
